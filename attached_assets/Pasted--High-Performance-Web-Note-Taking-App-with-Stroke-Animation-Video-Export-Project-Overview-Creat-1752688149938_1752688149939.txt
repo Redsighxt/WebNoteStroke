@@ -1,0 +1,431 @@
+# High-Performance Web Note-Taking App with Stroke Animation Video Export
+
+## Project Overview
+Create a **high-performance web application** that functions as an advanced note-taking app with the unique ability to record and replay handwriting strokes as smooth animated videos. The app must achieve **native-like performance** with **smooth video exports** and **real-time progress indicators**.
+
+## Technology Stack for Maximum Performance
+- **Frontend**: TypeScript/JavaScript (ES2022+) with modern web APIs
+- **Framework**: React 18+ with Hooks or Vanilla JavaScript with Web Components
+- **Graphics Engine**: HTML5 Canvas API with WebGL2 acceleration
+- **Video Processing**: WebCodecs API (primary) with FFmpeg.wasm fallback
+- **Performance**: Web Workers, OffscreenCanvas, SharedArrayBuffer
+- **Storage**: IndexedDB with compression for local data
+- **PWA Features**: Service Worker, Web App Manifest
+- **Build Tools**: Vite or Webpack with performance optimizations
+
+---
+
+## DETAILED FEATURE SPECIFICATIONS
+
+### 1. APPLICATION STARTUP & CANVAS SELECTION SCREEN
+
+#### Initial Landing Interface
+- **Primary Action**: "Create New Canvas" button (prominent, center-positioned)
+- **Canvas Size Selection Panel**:
+  - **Manual Input**: Width and Height fields (pixels/inches/cm with unit selector)
+  - **Preset Sizes**: 
+    - A4 Portrait (210×297mm)
+    - A4 Landscape (297×210mm)
+    - Letter Portrait (8.5×11 inches)
+    - Letter Landscape (11×8.5 inches)
+    - Square (1000×1000px)
+    - Widescreen (1920×1080px)
+    - Custom preset slots (user can save their own sizes)
+  - **Size Preview**: Visual representation of selected dimensions
+
+#### Canvas Background & Color Selection
+- **Color Selection Methods**:
+  - **Color Wheel Picker**: HSB/RGB color wheel with saturation/brightness controls
+  - **Preset Colors**: White, Light Gray, Cream, Light Blue, Light Green, etc.
+  - **Custom Color History**: Recently used colors automatically saved
+  - **Color Palette Manager**: Save and organize custom color sets
+- **Background Options**:
+  - Solid color (with color picker)
+  - Transparent (for overlay work)
+  - Grid overlay (with density controls)
+  - Ruled lines (with spacing controls)
+  - Dot grid pattern
+
+#### Previously Saved Canvases Section
+- **Canvas Gallery**: Grid layout showing thumbnail previews
+- **Canvas Information Display**:
+  - Canvas name/title
+  - Creation date and last modified
+  - Canvas dimensions
+  - Number of pages in the canvas
+  - File size
+- **Canvas Actions**:
+  - Open canvas
+  - Duplicate canvas
+  - Delete canvas (with confirmation)
+  - Export canvas as image/video
+- **Search and Filter**: Search by name, filter by date, size, or number of pages
+- **Sorting Options**: By date, name, size, or last modified
+
+### 2. MAIN CANVAS INTERFACE & WORKSPACE
+
+#### Canvas Area (Center Focus)
+- **Zoomable Canvas**: Smooth zoom with mouse wheel/pinch gestures (25% to 500%)
+- **Pan Support**: Drag to move around large canvases
+- **Infinite Canvas Option**: Expandable canvas that grows with content
+- **Canvas Guides**:
+  - Grid overlay (customizable density: 5px to 50px spacing)
+  - Ruler markings (customizable: every 10px, 25px, 50px, 100px)
+  - Margin guides (customizable margins)
+  - Center guides (horizontal/vertical center lines)
+- **Canvas Background**: Changeable during work (solid, grid, ruled, dots)
+
+#### Drawing Tools Palette (Left Sidebar)
+- **Pen Tools**:
+  - **Ballpoint Pen**: Consistent line width, smooth ink flow
+  - **Fountain Pen**: Variable width based on pressure/speed
+  - **Felt Tip Marker**: Broad strokes with texture
+  - **Pencil**: Pressure-sensitive with graphite texture
+  - **Brush**: Artistic brush with variable width and opacity
+  - **Calligraphy Pen**: Angled tip for elegant writing
+
+- **Tool Customization Panel** (appears when tool selected):
+  - **Size/Thickness**: Slider (0.5px to 50px) with live preview
+  - **Opacity**: Slider (10% to 100%) with transparency preview
+  - **Pressure Sensitivity**: Toggle and sensitivity adjustment
+  - **Smoothing**: Anti-aliasing and stroke smoothing options
+  - **Texture**: For pencil/brush tools (paper texture simulation)
+
+#### Utility Tools
+- **Eraser Tool**:
+  - Size adjustment (5px to 100px)
+  - Eraser types: Hard edge, soft edge, texture eraser
+  - Erase by stroke (remove entire strokes)
+  - Erase by area (traditional eraser behavior)
+
+- **Ruler Tool**:
+  - Straight line drawing with snap-to-grid
+  - Angle measurement display
+  - Length measurement display
+  - Adjustable ruler length
+
+- **Lasso Selection Tool**:
+  - **Freeform Lasso**: Draw irregular selection areas
+  - **Rectangle Selection**: Click and drag rectangular selection
+  - **Circle Selection**: Click and drag circular selection
+  - **Selection Actions**: Move, copy, delete, change color/size of selected strokes
+
+#### Color Management (Right Sidebar)
+- **Active Color Display**: Large preview of current color
+- **Color Selection**:
+  - **Color Wheel**: HSB color picker with saturation/brightness triangle
+  - **RGB Sliders**: Fine-tune red, green, blue values
+  - **Hex Input**: Direct hex color code entry
+  - **Opacity Slider**: For semi-transparent strokes
+- **Color Presets**:
+  - Default palette (black, blue, red, green, etc.)
+  - Custom color slots (click to add current color)
+  - Recent colors (automatically populated)
+  - Color palette import/export
+
+### 3. MULTI-PAGE MANAGEMENT SYSTEM
+
+#### Page Navigation (Bottom Bar)
+- **Page Thumbnails**: Small previews of each page
+- **Page Information**: Page number, stroke count, last modified
+- **Page Actions**:
+  - Add new page (+ button)
+  - Delete page (with confirmation)
+  - Duplicate page
+  - Reorder pages (drag and drop)
+  - Page settings (size, background)
+
+#### Page Sidebar (Alternative Layout)
+- **Collapsible Sidebar**: Toggle visibility to maximize canvas space
+- **Page List View**: Vertical list with larger thumbnails
+- **Page Navigation**: Quick jump to any page
+- **Page Search**: Find pages by content or notes
+
+### 4. ADVANCED STROKE RECORDING SYSTEM (CORE FEATURE)
+
+#### Real-Time Stroke Capture
+- **High-Precision Recording**:
+  - Capture coordinates at 120Hz minimum (every 8ms)
+  - Sub-pixel accuracy for smooth lines
+  - Pressure data capture (if supported by device)
+  - Velocity calculation for natural stroke variation
+  - Timestamp recording with microsecond precision
+
+#### Stroke Data Structure
+```typescript
+interface StrokeData {
+  id: string;
+  startTime: number;
+  endTime: number;
+  tool: ToolType;
+  color: string;
+  size: number;
+  opacity: number;
+  points: StrokePoint[];
+  pressure?: number[];
+  velocity?: number[];
+}
+
+interface StrokePoint {
+  x: number;
+  y: number;
+  timestamp: number;
+  pressure?: number;
+}
+```
+
+#### Pause Detection & Timing
+- **Automatic Pause Detection**: Identify when user stops drawing
+- **Pause Duration Recording**: Exact time between strokes
+- **Thinking Time Capture**: Record natural writing pauses
+- **Stroke Grouping**: Group related strokes (letters, words, sentences)
+
+#### Memory Optimization
+- **Efficient Data Structures**: Use typed arrays for performance
+- **Stroke Compression**: Compress repetitive data without quality loss
+- **Lazy Loading**: Load stroke data as needed
+- **Background Processing**: Process stroke data in Web Workers
+
+### 5. VIDEO EXPORT SYSTEM WITH NATIVE-LIKE PERFORMANCE
+
+#### Animation Replay Engine
+- **Smooth Playback**: 60fps video generation minimum
+- **Stroke Recreation**: Pixel-perfect recreation of original strokes
+- **Timing Accuracy**: Maintain exact timing or apply custom timing
+- **Progressive Rendering**: Render video in background while showing progress
+
+#### Video Export Configuration Panel
+- **Timing Controls**:
+  - **Original Timing**: Use exact recorded timing
+  - **Custom Stroke Delay**: Set fixed delay between strokes (0.1s to 5.0s)
+  - **Playback Speed**: Adjust overall speed (0.25x to 4.0x)
+  - **Pause Elimination**: Remove or reduce natural pauses
+  - **Smooth Acceleration**: Gradual speed changes instead of abrupt
+
+- **Quality Settings**:
+  - **Resolution**: 720p, 1080p, 1440p, 4K
+  - **Frame Rate**: 30fps, 60fps, 120fps (for high-end displays)
+  - **Bitrate**: Auto, High, Medium, Low
+  - **Compression**: H.264, H.265, VP9 (based on browser support)
+
+#### Background Selection for Video
+- **Background Options**:
+  - **Plain Colors**: White, black, or custom color from color wheel
+  - **Grid Background**: 
+    - Grid type: Lines, dots, crosses
+    - Grid density: 5px to 50px spacing
+    - Grid color: Light gray, blue, custom
+    - Grid opacity: 10% to 50%
+  - **Ruled Background**:
+    - Line spacing: 6mm, 8mm, 10mm, 12mm, custom
+    - Line color: Light blue, gray, custom
+    - Margin lines: Optional left margin
+  - **Original Canvas Background**: Keep the background used during creation
+  - **Transparent Background**: For overlay on other content
+
+#### Video Format Options
+- **Primary Formats**:
+  - **MP4** (H.264): Best compatibility, good compression
+  - **WebM** (VP9): Excellent compression, web-optimized
+  - **AVI**: Uncompressed, largest file size
+  - **MOV**: Apple-optimized format
+- **Format Selection Guidance**: Auto-recommend based on intended use
+- **File Size Estimation**: Real-time estimation based on settings
+
+#### Performance Optimization for Large Videos
+- **Chunked Processing**: Process video in segments to prevent memory issues
+- **Progress Indicators**: 
+  - Overall progress percentage
+  - Current processing stage
+  - Time remaining estimation
+  - Cancel option during processing
+- **Memory Management**: Efficient memory use for large canvases
+- **Background Processing**: Use Web Workers to prevent UI freezing
+
+### 6. ADVANCED GRID AND RULER SYSTEM
+
+#### Grid System
+- **Grid Types**:
+  - **Line Grid**: Traditional intersecting lines
+  - **Dot Grid**: Intersection points only
+  - **Cross Grid**: Small crosses at intersections
+  - **Custom Grid**: User-defined patterns
+- **Grid Density Controls**:
+  - **Spacing**: 5px to 100px (adjustable in 1px increments)
+  - **Subdivisions**: Minor grid lines between major lines
+  - **Snap to Grid**: Toggle automatic snapping
+  - **Grid Color**: Customizable with opacity control
+
+#### Ruler System
+- **Ruler Types**:
+  - **Horizontal Rulers**: Top edge measurements
+  - **Vertical Rulers**: Left edge measurements
+  - **Corner Ruler**: Origin point indicator
+  - **Floating Rulers**: Moveable measurement tools
+- **Ruler Customization**:
+  - **Units**: Pixels, inches, centimeters, millimeters
+  - **Density**: Mark every 10px, 25px, 50px, 100px
+  - **Color**: Ruler background and text color
+  - **Visibility**: Show/hide rulers independently
+
+#### Overlay Management
+- **Layer System**: Grid and rulers as separate overlay layers
+- **Transparency**: Adjustable opacity for non-intrusive guidance
+- **Print Options**: Include/exclude grids and rulers in exports
+- **Dynamic Visibility**: Auto-hide during drawing, show when idle
+
+### 7. UNDO/REDO SYSTEM
+
+#### Stroke-Level Undo/Redo
+- **Granular Control**: Undo individual strokes, not just actions
+- **Unlimited History**: No arbitrary limits on undo levels
+- **Efficient Storage**: Compressed undo data to minimize memory use
+- **Visual Feedback**: Highlight what will be undone/redone
+
+#### Advanced Undo Features
+- **Selective Undo**: Undo specific strokes from history
+- **Undo Branches**: Multiple undo paths for complex editing
+- **Undo Preview**: Show what will be undone before confirming
+- **Redo Chains**: Maintain redo history even after new actions
+
+### 8. PERFORMANCE OPTIMIZATION FEATURES
+
+#### Rendering Optimization
+- **Hardware Acceleration**: WebGL2 for all drawing operations
+- **Efficient Redrawing**: Only redraw changed areas
+- **Level of Detail**: Reduce detail when zoomed out
+- **Smooth Interpolation**: Anti-aliasing and smooth curves
+
+#### Memory Management
+- **Object Pooling**: Reuse objects to reduce garbage collection
+- **Efficient Data Structures**: Typed arrays for better performance
+- **Progressive Loading**: Load data as needed
+- **Memory Monitoring**: Track and optimize memory usage
+
+#### Background Processing
+- **Web Workers**: Heavy processing in background threads
+- **Async Operations**: Non-blocking operations for UI responsiveness
+- **Progressive Enhancement**: Gradual feature loading
+- **Efficient Caching**: Smart caching strategies
+
+### 9. FILE MANAGEMENT & EXPORT SYSTEM
+
+#### Project File System
+- **Auto-Save**: Automatic saving every 30 seconds
+- **Version History**: Keep previous versions of canvases
+- **Backup System**: Local backups with recovery options
+- **Export Formats**:
+  - **Project Files**: .noteapp (custom format with all data)
+  - **Image Export**: PNG, JPEG, SVG, PDF
+  - **Video Export**: MP4, WebM, AVI
+  - **Data Export**: JSON (stroke data), CSV (analytics)
+
+#### Cloud Integration (Optional)
+- **Cloud Storage**: Google Drive, Dropbox, OneDrive integration
+- **Sync Across Devices**: Access canvases from any device
+- **Collaboration**: Share canvases with others
+- **Backup Security**: Encrypted cloud backups
+
+### 10. USER INTERFACE DESIGN
+
+#### Modern Web Interface
+- **Responsive Design**: Works on desktop, tablet, and mobile
+- **Touch-Friendly**: Optimized for touch and stylus input
+- **Keyboard Shortcuts**: 
+  - Ctrl+Z (Undo), Ctrl+Y (Redo)
+  - Ctrl+S (Save), Ctrl+N (New Canvas)
+  - B (Brush), P (Pen), E (Eraser)
+  - Space (Pan mode), Ctrl+Scroll (Zoom)
+- **Accessibility**: Screen reader support, high contrast mode
+
+#### Theme System
+- **Light Theme**: Default bright theme
+- **Dark Theme**: Dark mode for low-light environments
+- **Custom Themes**: User-customizable interface colors
+- **Automatic Theme**: Follow system dark/light preference
+
+### 11. PERFORMANCE REQUIREMENTS
+
+#### Target Performance Metrics
+- **Drawing Latency**: <16ms from input to display (60fps)
+- **Video Export**: Process 1 minute of content in <30 seconds
+- **Memory Usage**: <512MB for typical use, <2GB for heavy use
+- **Startup Time**: <3 seconds to first interactive
+- **File Operations**: Save/load <1 second for typical canvas
+
+#### Browser Compatibility
+- **Primary Support**: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
+- **Progressive Enhancement**: Graceful degradation for older browsers
+- **Mobile Browsers**: iOS Safari, Android Chrome with full features
+- **Feature Detection**: Automatic fallbacks for missing APIs
+
+### 12. TECHNICAL IMPLEMENTATION REQUIREMENTS
+
+#### Core Architecture
+- **Modular Design**: Separate modules for canvas, tools, video, storage
+- **Event-Driven**: Efficient event handling for real-time interaction
+- **State Management**: Centralized state for consistent behavior
+- **Error Handling**: Comprehensive error recovery and user feedback
+
+#### Performance Technologies
+- **WebGL2**: Hardware-accelerated graphics
+- **OffscreenCanvas**: Background rendering
+- **Web Workers**: Background processing
+- **WebCodecs**: Efficient video encoding
+- **IndexedDB**: Fast local storage
+- **Service Worker**: Offline functionality and caching
+
+#### Data Structures
+- **Efficient Stroke Storage**: Compressed, fast-access stroke data
+- **Spatial Indexing**: Quick lookup for selection and editing
+- **Temporal Indexing**: Efficient timeline-based operations
+- **Memory Pooling**: Reuse objects to reduce garbage collection
+
+---
+
+## CRITICAL SUCCESS CRITERIA
+
+### Performance Benchmarks
+1. **Drawing Performance**: Smooth 60fps drawing with no lag
+2. **Video Export Speed**: Export 1 minute of content in under 30 seconds
+3. **Memory Efficiency**: Handle 1000+ strokes without performance degradation
+4. **Startup Performance**: App ready in under 3 seconds
+5. **File Operations**: Save/load operations complete in under 1 second
+
+### User Experience Requirements
+1. **Intuitive Interface**: New users can start drawing immediately
+2. **Responsive Design**: Works perfectly on all screen sizes
+3. **Reliable Performance**: No crashes or freezes during normal use
+4. **Smooth Animations**: All UI animations run at 60fps
+5. **Progress Feedback**: Clear progress indicators for all operations
+
+### Technical Requirements
+1. **Cross-Browser Compatibility**: Works in all modern browsers
+2. **Offline Functionality**: Core features work without internet
+3. **Mobile Optimization**: Touch and stylus support on mobile devices
+4. **Accessibility Compliance**: WCAG 2.1 AA accessibility standards
+5. **Security**: No XSS vulnerabilities, secure data handling
+
+---
+
+## DELIVERABLES
+
+### Primary Application
+- **Complete Web Application**: Fully functional note-taking app
+- **Progressive Web App**: Installable, offline-capable
+- **Mobile-Optimized Version**: Touch and stylus support
+- **Accessibility Features**: Screen reader and keyboard navigation support
+
+### Documentation
+- **User Manual**: Comprehensive guide for all features
+- **Technical Documentation**: API documentation and architecture guide
+- **Performance Report**: Benchmarks and optimization details
+- **Browser Compatibility Matrix**: Detailed browser support information
+
+### Quality Assurance
+- **Automated Tests**: Unit tests, integration tests, performance tests
+- **Cross-Browser Testing**: Verification across all supported browsers
+- **Performance Benchmarks**: Detailed performance metrics
+- **User Testing Results**: Feedback from real users
+
+**FINAL REQUIREMENT**: This web application must achieve native-like performance with smooth, responsive drawing, efficient video export with progress indicators, and seamless user experience across all supported devices and browsers.
