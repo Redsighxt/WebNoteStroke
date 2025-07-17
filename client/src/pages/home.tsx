@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Canvas } from '@/components/Canvas';
+import { CanvasOptimized } from '@/components/CanvasOptimized';
 import { ToolSidebar } from '@/components/ToolSidebar';
 import { ToolProperties } from '@/components/ToolProperties';
 import { PageManager } from '@/components/PageManager';
@@ -10,8 +10,8 @@ import { ExportProgressModal } from '@/components/ExportProgressModal';
 import { FloatingControls } from '@/components/FloatingControls';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useCanvas } from '@/hooks/useCanvas';
-import { ToolType, DEFAULT_TOOLS } from '@/types/tools';
+
+import { ToolType, DEFAULT_TOOLS, StrokeData } from '@/types/tools';
 import { Canvas as CanvasType } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 import { PenTool, Plus, Save, FolderOpen, Video, Moon, Settings, Undo2, Redo2, Clock, Play, Download } from 'lucide-react';
@@ -41,7 +41,10 @@ export default function Home() {
     gridSize: 10
   });
 
-  const { canvasRef, state, updateSettings, addStroke, undo, redo, clearCanvas, canUndo, canRedo } = useCanvas();
+  const canvasRef = useRef<{ exportImage: () => string; clearCanvas: () => void } | null>(null);
+  const [canvasStrokes, setCanvasStrokes] = useState<StrokeData[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
   // Fetch canvases
   const { data: canvases = [] } = useQuery({
@@ -345,11 +348,11 @@ export default function Home() {
               </div>
               
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={undo} disabled={!canUndo}>
+                <Button variant="outline" size="sm" onClick={() => {}} disabled={true}>
                   <Undo2 size={16} className="mr-1" />
                   Undo
                 </Button>
-                <Button variant="outline" size="sm" onClick={redo} disabled={!canRedo}>
+                <Button variant="outline" size="sm" onClick={() => {}} disabled={true}>
                   <Redo2 size={16} className="mr-1" />
                   Redo
                 </Button>
@@ -379,15 +382,14 @@ export default function Home() {
           </div>
 
           {/* Canvas */}
-          <Canvas
+          <CanvasOptimized
             ref={canvasRef}
             canvasId={currentCanvasId}
             pageIndex={currentPageIndex}
             currentTool={currentTool}
-            settings={state.settings}
-            onStrokeComplete={addStroke}
+            onStrokeComplete={(stroke) => setCanvasStrokes(prev => [...prev, stroke])}
             onDrawingStateChange={setIsRecording}
-            strokes={state.strokes}
+            strokes={canvasStrokes}
             toolSettings={toolSettings}
             onDrawingStart={handleDrawingStart}
             onDrawingEnd={handleDrawingEnd}
@@ -421,7 +423,7 @@ export default function Home() {
           setShowExportProgress(true);
           // Handle export
         }}
-        strokes={state.strokes}
+        strokes={canvasStrokes}
       />
 
       <CanvasCreationModal

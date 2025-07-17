@@ -1,0 +1,32 @@
+3. Video Export Orchestration and Saving
+client/src/hooks/use-video-export.ts: This React hook is the central control point for the video export feature in the UI.
+State Management: It manages isExporting (boolean), progress (detailed export status), and exportSettings (user-configurable options for timing, quality, background, and format).
+initializeEncoder(): Ensures that VideoEncoder and MediaRecorderExport instances are created.
+estimateFileSize(strokes): Uses the VideoEncoder (or a similar logic) to provide an estimated output file size based on strokes and settings.
+startExport(strokes): This is the main function to initiate the export.
+It sets the isExporting flag and initial progress state.
+Prioritization: It first attempts to use mediaRecorder.current.exportVideo().
+Fallback: If the MediaRecorder export fails (e.g., due to browser limitations or specific settings), it catches the error and falls back to encoder.current.exportVideo() (the WebCodecs/canvas-based approach).
+It continuously updates the progress state, which can be displayed to the user.
+Upon completion, it returns the final video Blob.
+cancelExport(): Allows the user to stop an ongoing export. It sets an internal exportCancelled flag and sends a message to the Web Worker if it's active.
+downloadVideo(blob, filename): This function handles saving the generated video Blob to the user's device.
+URL.createObjectURL(blob): Creates a temporary URL that points to the video Blob in memory.
+An <a> (anchor) HTML element is dynamically created.
+link.href is set to the object URL, and link.download is set to the desired filename (e.g., canvas-export.mp4).
+link.click(): Programmatically triggers a click on the hidden link, prompting the browser to download the file.
+URL.revokeObjectURL(url): Crucially, this releases the memory associated with the temporary object URL once the download is initiated, preventing memory leaks.
+cleanup(): Destroys the VideoEncoder, MediaRecorderExport, and terminates the Web Worker to release resources after export or cancellation.
+Summary of the Video Export Pipeline:
+Drawing Capture: User draws on the canvas, and useCanvasDrawing (via StrokeRecorder) captures detailed Stroke data, including points, timestamps, pressure, and velocity.
+Export Initiation: User triggers video export, calling startExport in useVideoExport.
+Engine Selection:
+The system first attempts to use the MediaRecorderExport class, which directly captures a video stream from the canvas. This is generally faster and more efficient.
+If MediaRecorder fails or is not suitable, it falls back to a VideoEncoder (likely WebCodecs-based) which might run in a video-export.worker.ts to avoid blocking the UI.
+Frame Rendering:
+For MediaRecorderExport, the canvas is cleared and redrawn for each frame, progressively animating the current stroke while showing all previous strokes as complete.
+For the Web Worker fallback, OffscreenCanvas is used to render frames off-thread. (Note: The current worker's renderFrame needs to be enhanced for progressive animation).
+Video Encoding:
+MediaRecorder handles encoding automatically, collecting Blob chunks.
+The Web Worker (or VideoEncoder) would ideally use WebCodecs or a library like ffmpeg.wasm to encode the rendered ImageData frames into a video format.
+Video Saving: The final video Blob is received by useVideoExport, which then uses URL.createObjectURL and a temporary <a> tag to trigger a download in the user's browser.
