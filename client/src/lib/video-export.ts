@@ -40,11 +40,7 @@ export class VideoExportEngine {
     });
 
     try {
-      // Setup export canvas
-      const exportCanvas = this.setupExportCanvas(settings);
-      const exportCtx = exportCanvas.getContext('2d')!;
-
-      // Generate animation frames
+      // Simplified approach - create a sequence of images first
       const frames = await this.generateAnimationFrames(strokes, settings, onProgress);
       
       onProgress({
@@ -56,27 +52,30 @@ export class VideoExportEngine {
         message: 'Rendering animation frames...'
       });
 
-      // Setup media recorder
-      const stream = exportCanvas.captureStream(settings.frameRate);
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: this.getMimeType(settings.format),
-        videoBitsPerSecond: this.getBitrate(settings.quality)
-      });
+      // Setup export canvas
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = this.getResolutionWidth(settings.resolution);
+      exportCanvas.height = this.getResolutionHeight(settings.resolution);
+      const exportCtx = exportCanvas.getContext('2d')!;
 
-      this.chunks = [];
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          this.chunks.push(event.data);
-        }
-      };
-
-      // Start recording
-      mediaRecorder.start();
-      
-      // Render frames
+      // Create images array for frames
+      const frameImages: ImageData[] = [];
       const startTime = performance.now();
+      
       for (let i = 0; i < frames.length; i++) {
+        // Clear canvas
+        exportCtx.clearRect(0, 0, exportCanvas.width, exportCanvas.height);
+        
+        // Set background
+        exportCtx.fillStyle = this.getBackgroundColor(settings.backgroundType);
+        exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+        
+        // Render frame
         await this.renderFrame(exportCtx, frames[i], settings);
+        
+        // Capture frame data
+        const imageData = exportCtx.getImageData(0, 0, exportCanvas.width, exportCanvas.height);
+        frameImages.push(imageData);
         
         const elapsed = performance.now() - startTime;
         const remaining = (elapsed / (i + 1)) * (frames.length - i - 1);
@@ -94,35 +93,8 @@ export class VideoExportEngine {
         await new Promise(resolve => setTimeout(resolve, 1));
       }
 
-      // Finalize recording
-      return new Promise((resolve, reject) => {
-        mediaRecorder.onstop = () => {
-          const blob = new Blob(this.chunks, { type: this.getMimeType(settings.format) });
-          onProgress({
-            stage: 'complete',
-            progress: 100,
-            currentFrame: frames.length,
-            totalFrames: frames.length,
-            timeRemaining: 0,
-            message: 'Video export complete!'
-          });
-          resolve(blob);
-        };
-
-        mediaRecorder.onerror = (error) => {
-          onProgress({
-            stage: 'error',
-            progress: 0,
-            currentFrame: 0,
-            totalFrames: 0,
-            timeRemaining: 0,
-            message: 'Error during video export'
-          });
-          reject(error);
-        };
-
-        mediaRecorder.stop();
-      });
+      // Now create video from frames using MediaRecorder
+      return this.createVideoFromFrames(exportCanvas, frameImages, settings, onProgress);
 
     } catch (error) {
       onProgress({

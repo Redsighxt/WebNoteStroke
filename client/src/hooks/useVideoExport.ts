@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { VideoExportSettings, VideoExportProgress } from '@/types/video';
 import { StrokeData } from '@/types/tools';
-import { VideoExportEngine } from '@/lib/video-export';
+import { SimpleVideoExporter } from '@/lib/video-export-simple';
 
 export function useVideoExport(canvas: HTMLCanvasElement | null) {
   const [isExporting, setIsExporting] = useState(false);
@@ -19,9 +19,9 @@ export function useVideoExport(canvas: HTMLCanvasElement | null) {
     setExportedBlob(null);
 
     try {
-      const videoEngine = new VideoExportEngine(canvas);
+      const videoExporter = new SimpleVideoExporter(canvas);
       
-      const blob = await videoEngine.exportVideo(strokes, settings, (progressUpdate) => {
+      const blob = await videoExporter.exportVideo(strokes, settings, (progressUpdate) => {
         setProgress(progressUpdate);
       });
 

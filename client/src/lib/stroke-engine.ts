@@ -70,8 +70,8 @@ export class StrokeEngine {
     const stroke = this.recordingStrokes.get(this.currentStrokeId);
     if (!stroke) return false;
 
-    // Calculate minimum distance to reduce point density
-    const minDistance = Math.max(1, settings.size * 0.1);
+    // Calculate minimum distance to reduce point density but not too much
+    const minDistance = Math.max(0.5, settings.size * 0.05);
     const distance = calculateDistance(
       this.lastPoint.x,
       this.lastPoint.y,
@@ -85,8 +85,8 @@ export class StrokeEngine {
     stroke.points.push(point);
     stroke.endTime = point.timestamp;
 
-    // Apply smoothing if enabled
-    if (settings.smoothing > 0) {
+    // Apply minimal smoothing only if enabled and not too aggressive
+    if (settings.smoothing > 0 && settings.smoothing < 20) {
       const smoothingFactor = settings.smoothing / 100;
       const smoothedPoints = smoothPoints(stroke.points, smoothingFactor);
       stroke.points = smoothedPoints.map((p, i) => ({

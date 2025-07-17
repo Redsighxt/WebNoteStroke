@@ -150,8 +150,9 @@ export function getCanvasCoordinates(
     clientY = event.touches[0].clientY;
   }
   
-  const x = (clientX - rect.left - settings.panX) / settings.zoom;
-  const y = (clientY - rect.top - settings.panY) / settings.zoom;
+  // Simple coordinate calculation for full canvas
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
   
   return { x, y };
 }

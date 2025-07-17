@@ -43,35 +43,41 @@ export const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(({
 
   useImperativeHandle(ref, () => canvasRef.current!);
 
-  // Tool settings
+  // Tool settings with minimal smoothing
   const toolSettings: ToolSettings = {
     size: 3,
     opacity: 100,
     color: '#000000',
     pressureSensitive: true,
-    smoothing: 50,
+    smoothing: 0, // No smoothing by default for better writing experience
     lineCap: 'round',
     lineJoin: 'round'
   };
 
   // Setup canvas
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !containerRef.current) return;
 
     const canvas = canvasRef.current;
+    const container = containerRef.current;
     const ctx = canvas.getContext('2d')!;
     const pixelRatio = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-
-    canvas.width = rect.width * pixelRatio;
-    canvas.height = rect.height * pixelRatio;
+    
+    // Make canvas fill the container
+    const containerRect = container.getBoundingClientRect();
+    canvas.width = containerRect.width * pixelRatio;
+    canvas.height = containerRect.height * pixelRatio;
     ctx.scale(pixelRatio, pixelRatio);
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
+    canvas.style.width = containerRect.width + 'px';
+    canvas.style.height = containerRect.height + 'px';
 
     // Enable hardware acceleration
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
+    
+    // Set initial background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
   }, []);
 
   // Render strokes
@@ -241,38 +247,34 @@ export const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(({
   return (
     <div className="flex-1 canvas-area relative overflow-hidden" ref={containerRef}>
       {/* Canvas */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="relative">
-          <canvas
-            ref={canvasRef}
-            className={`bg-white border border-gray-300 dark:border-gray-600 shadow-lg rounded-lg ${
-              currentTool === 'pen' ? 'cursor-pen' : 
-              currentTool === 'eraser' ? 'cursor-eraser' :
-              currentTool === 'hand' ? 'cursor-grab' :
-              'cursor-crosshair'
-            }`}
-            width={595}
-            height={842}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onWheel={handleWheel}
-            style={{
-              transform: `scale(${settings.zoom}) translate(${settings.panX}px, ${settings.panY}px)`,
-              transformOrigin: 'center'
-            }}
-          />
-          
-          {/* Canvas Overlay Info */}
-          <div className="absolute top-4 left-4 glass-effect dark:glass-effect-dark rounded-lg p-2">
-            <div className="text-xs text-gray-700 dark:text-gray-300">
-              <div>Page {pageIndex + 1}</div>
-              <div>Strokes: {strokes.filter(s => s.pageIndex === pageIndex).length}</div>
-            </div>
+      <div className="absolute inset-0">
+        <canvas
+          ref={canvasRef}
+          className={`w-full h-full bg-white ${
+            currentTool === 'pen' ? 'cursor-pen' : 
+            currentTool === 'eraser' ? 'cursor-eraser' :
+            currentTool === 'hand' ? 'cursor-grab' :
+            'cursor-crosshair'
+          }`}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onWheel={handleWheel}
+          style={{
+            transform: `scale(${settings.zoom}) translate(${settings.panX}px, ${settings.panY}px)`,
+            transformOrigin: 'center'
+          }}
+        />
+        
+        {/* Canvas Overlay Info */}
+        <div className="absolute top-4 left-4 glass-effect dark:glass-effect-dark rounded-lg p-2">
+          <div className="text-xs text-gray-700 dark:text-gray-300">
+            <div>Page {pageIndex + 1}</div>
+            <div>Strokes: {strokes.filter(s => s.pageIndex === pageIndex).length}</div>
           </div>
         </div>
       </div>
