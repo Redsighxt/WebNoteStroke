@@ -14,6 +14,15 @@ interface CanvasProps {
   onStrokeComplete: (stroke: StrokeData) => void;
   onDrawingStateChange: (isDrawing: boolean) => void;
   strokes: StrokeData[];
+  toolSettings: {
+    size: number;
+    opacity: number;
+    color: string;
+    smoothing: number;
+    pressureSensitive: boolean;
+  };
+  onDrawingStart?: () => void;
+  onDrawingEnd?: () => void;
 }
 
 export const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(({
@@ -23,7 +32,10 @@ export const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(({
   settings,
   onStrokeComplete,
   onDrawingStateChange,
-  strokes
+  strokes,
+  toolSettings,
+  onDrawingStart,
+  onDrawingEnd
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -43,13 +55,13 @@ export const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(({
 
   useImperativeHandle(ref, () => canvasRef.current!);
 
-  // Tool settings with minimal smoothing
-  const toolSettings: ToolSettings = {
-    size: 3,
-    opacity: 100,
-    color: '#000000',
-    pressureSensitive: true,
-    smoothing: 0, // No smoothing by default for better writing experience
+  // Convert tool settings to stroke settings
+  const strokeSettings: ToolSettings = {
+    size: toolSettings.size,
+    opacity: toolSettings.opacity,
+    color: toolSettings.color,
+    pressureSensitive: toolSettings.pressureSensitive,
+    smoothing: toolSettings.smoothing,
     lineCap: 'round',
     lineJoin: 'round'
   };
@@ -103,14 +115,14 @@ export const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(({
     // Render all strokes
     strokes.forEach(stroke => {
       if (stroke.pageIndex === pageIndex) {
-        renderStroke(stroke, toolSettings);
+        renderStroke(stroke, strokeSettings);
       }
     });
-  }, [strokes, pageIndex, settings, renderStroke, toolSettings]);
+  }, [strokes, pageIndex, settings, renderStroke, strokeSettings]);
 
   // Mouse event handlers
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current || !canvasId) return;
+    if (!canvasRef.current) return;
 
     const coords = getCanvasCoordinates(e.nativeEvent, canvasRef.current, settings);
     const snappedCoords = snapToGrid(coords.x, coords.y, settings);
@@ -121,9 +133,14 @@ export const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(({
       return;
     }
 
-    if (currentTool === 'eraser' || currentTool === 'pen' || currentTool === 'brush') {
+    // Auto-create canvas if needed
+    if (!canvasId && onDrawingStart) {
+      onDrawingStart();
+    }
+
+    if (currentTool === 'eraser' || currentTool === 'pen' || currentTool === 'brush' || currentTool === 'pencil' || currentTool === 'marker') {
       const point = createPoint(snappedCoords.x, snappedCoords.y, e.pressure || 1);
-      startRecording(point, currentTool, toolSettings, canvasId, pageIndex);
+      startRecording(point, currentTool, strokeSettings, canvasId || 1, pageIndex);
       setIsDrawing(true);
       onDrawingStateChange(true);
     }
@@ -153,7 +170,7 @@ export const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(({
       const snappedCoords = snapToGrid(coords.x, coords.y, settings);
       const point = createPoint(snappedCoords.x, snappedCoords.y, e.pressure || 1);
       
-      continueRecording(point, toolSettings);
+      continueRecording(point, strokeSettings);
     }
   };
 
@@ -171,6 +188,9 @@ export const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(({
       }
       setIsDrawing(false);
       onDrawingStateChange(false);
+      if (onDrawingEnd) {
+        onDrawingEnd();
+      }
     }
   };
 
@@ -185,7 +205,7 @@ export const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(({
 
     if (currentTool !== 'hand') {
       const point = createPoint(snappedCoords.x, snappedCoords.y, touch.force || 1);
-      startRecording(point, currentTool, toolSettings, canvasId, pageIndex);
+      startRecording(point, currentTool, strokeSettings, canvasId, pageIndex);
       setIsDrawing(true);
       onDrawingStateChange(true);
     }
@@ -200,7 +220,7 @@ export const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(({
     const snappedCoords = snapToGrid(coords.x, coords.y, settings);
     const point = createPoint(snappedCoords.x, snappedCoords.y, touch.force || 1);
     
-    continueRecording(point, toolSettings);
+    continueRecording(point, strokeSettings);
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {

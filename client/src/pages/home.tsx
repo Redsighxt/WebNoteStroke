@@ -21,12 +21,22 @@ export default function Home() {
   const [currentTool, setCurrentTool] = useState<ToolType>('pen');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [recordingStartTime, setRecordingStartTime] = useState(0);
   const [showVideoExport, setShowVideoExport] = useState(false);
   const [showCanvasCreation, setShowCanvasCreation] = useState(false);
   const [showExportProgress, setShowExportProgress] = useState(false);
   const [currentCanvasId, setCurrentCanvasId] = useState<number | null>(null);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // Tool settings
+  const [toolSettings, setToolSettings] = useState({
+    size: 3,
+    opacity: 100,
+    color: '#000000',
+    smoothing: 0,
+    pressureSensitive: true
+  });
 
   const { canvasRef, state, updateSettings, addStroke, undo, redo, clearCanvas, canUndo, canRedo } = useCanvas();
 
@@ -42,6 +52,29 @@ export default function Home() {
     enabled: currentCanvasId !== null,
     retry: false
   });
+
+  // Auto-create canvas for immediate drawing
+  const autoCreateCanvas = useCallback(async () => {
+    const canvasData = {
+      name: 'Untitled Canvas',
+      width: 1200,
+      height: 800,
+      backgroundColor: '#ffffff',
+      backgroundType: 'solid',
+      pages: []
+    };
+    
+    try {
+      const response = await apiRequest('POST', '/api/canvases', canvasData);
+      const newCanvas = await response.json();
+      queryClient.invalidateQueries({ queryKey: ['/api/canvases'] });
+      setCurrentCanvasId(newCanvas.id);
+      return newCanvas.id;
+    } catch (error) {
+      console.error('Auto-create canvas failed:', error);
+      return null;
+    }
+  }, [queryClient]);
 
   // Create canvas mutation
   const createCanvasMutation = useMutation({
@@ -109,18 +142,20 @@ export default function Home() {
     }
   }, [currentCanvasId, state.strokes, saveCanvasMutation]);
 
-  // Recording timer
+  // Recording timer - fix to not reset when lifting stylus
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isRecording) {
+      if (recordingStartTime === 0) {
+        setRecordingStartTime(Date.now());
+      }
       interval = setInterval(() => {
-        setRecordingDuration(prev => prev + 1);
+        const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+        setRecordingDuration(elapsed);
       }, 1000);
-    } else {
-      setRecordingDuration(0);
     }
     return () => clearInterval(interval);
-  }, [isRecording]);
+  }, [isRecording, recordingStartTime]);
 
   // Theme toggle
   const toggleTheme = useCallback(() => {
@@ -196,6 +231,30 @@ export default function Home() {
     setShowCanvasCreation(true);
   };
 
+  const handleDrawingStart = useCallback(async () => {
+    if (!currentCanvasId) {
+      const newCanvasId = await autoCreateCanvas();
+      if (newCanvasId) {
+        setCurrentCanvasId(newCanvasId);
+      }
+    }
+    setIsRecording(true);
+    if (recordingStartTime === 0) {
+      setRecordingStartTime(Date.now());
+    }
+  }, [currentCanvasId, autoCreateCanvas, recordingStartTime]);
+
+  const handleDrawingEnd = useCallback(() => {
+    // Don't stop recording immediately, just pause
+    // Recording continues until explicitly stopped
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    setIsRecording(false);
+    setRecordingDuration(0);
+    setRecordingStartTime(0);
+  }, []);
+
   const handleSaveCanvas = () => {
     if (currentCanvasId) {
       saveCanvasMutation.mutate({
@@ -210,9 +269,9 @@ export default function Home() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+    <div className="h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 overflow-hidden">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-between shadow-sm">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-between shadow-sm flex-shrink-0">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
@@ -257,7 +316,7 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-h-0">
         {/* Left Sidebar - Tools */}
         <ToolSidebar
           currentTool={currentTool}
@@ -270,6 +329,8 @@ export default function Home() {
           currentTool={currentTool}
           settings={state.settings}
           onSettingsChange={updateSettings}
+          toolSettings={toolSettings}
+          onToolSettingsChange={setToolSettings}
         />
 
         {/* Canvas Area */}
@@ -297,12 +358,24 @@ export default function Home() {
             </div>
             
             <div className="flex items-center gap-2">
-              <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                <Clock size={12} />
-                <span>Recording: {formatTime(recordingDuration)}</span>
-              </div>
-              
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+              {isRecording && (
+                <>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                    <Clock size={12} />
+                    <span>Recording: {formatTime(recordingDuration)}</span>
+                  </div>
+                  
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                  
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={stopRecording}
+                  >
+                    Stop Recording
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
@@ -316,18 +389,23 @@ export default function Home() {
             onStrokeComplete={addStroke}
             onDrawingStateChange={setIsRecording}
             strokes={state.strokes}
+            toolSettings={toolSettings}
+            onDrawingStart={handleDrawingStart}
+            onDrawingEnd={handleDrawingEnd}
           />
         </div>
       </div>
 
       {/* Bottom Panel - Pages */}
-      <PageManager
-        canvasId={currentCanvasId}
-        currentPageIndex={currentPageIndex}
-        onPageChange={setCurrentPageIndex}
-        onPreviewAnimation={() => {}}
-        onExportAll={() => setShowVideoExport(true)}
-      />
+      <div className="flex-shrink-0">
+        <PageManager
+          canvasId={currentCanvasId}
+          currentPageIndex={currentPageIndex}
+          onPageChange={setCurrentPageIndex}
+          onPreviewAnimation={() => {}}
+          onExportAll={() => setShowVideoExport(true)}
+        />
+      </div>
 
       {/* Modals */}
       <VideoExportModal

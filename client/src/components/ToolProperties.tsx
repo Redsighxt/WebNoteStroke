@@ -14,14 +14,17 @@ interface ToolPropertiesProps {
   currentTool: ToolType;
   settings: CanvasSettings;
   onSettingsChange: (settings: Partial<CanvasSettings>) => void;
+  toolSettings: {
+    size: number;
+    opacity: number;
+    color: string;
+    smoothing: number;
+    pressureSensitive: boolean;
+  };
+  onToolSettingsChange: (settings: any) => void;
 }
 
-export function ToolProperties({ currentTool, settings, onSettingsChange }: ToolPropertiesProps) {
-  const [toolSize, setToolSize] = useState(3);
-  const [toolOpacity, setToolOpacity] = useState(100);
-  const [pressureSensitive, setPressureSensitive] = useState(true);
-  const [smoothing, setSmoothing] = useState(50);
-  const [selectedColor, setSelectedColor] = useState('#000000');
+export function ToolProperties({ currentTool, settings, onSettingsChange, toolSettings, onToolSettingsChange }: ToolPropertiesProps) {
 
   const currentToolData = DEFAULT_TOOLS.find(tool => tool.id === currentTool);
 
@@ -31,7 +34,7 @@ export function ToolProperties({ currentTool, settings, onSettingsChange }: Tool
   };
 
   return (
-    <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4 custom-scrollbar overflow-y-auto">
+    <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4 custom-scrollbar overflow-y-auto flex-shrink-0">
       <div className="space-y-6">
         {/* Tool Settings */}
         <Card>
@@ -47,15 +50,15 @@ export function ToolProperties({ currentTool, settings, onSettingsChange }: Tool
               </Label>
               <div className="flex items-center gap-3">
                 <Slider
-                  value={[toolSize]}
-                  onValueChange={(value) => setToolSize(value[0])}
+                  value={[toolSettings.size]}
+                  onValueChange={(value) => onToolSettingsChange({...toolSettings, size: value[0]})}
                   min={1}
                   max={50}
                   step={1}
                   className="flex-1"
                 />
                 <span className="text-sm text-gray-600 dark:text-gray-400 w-8 text-right">
-                  {toolSize}px
+                  {toolSettings.size}px
                 </span>
               </div>
             </div>
@@ -66,15 +69,15 @@ export function ToolProperties({ currentTool, settings, onSettingsChange }: Tool
               </Label>
               <div className="flex items-center gap-3">
                 <Slider
-                  value={[toolOpacity]}
-                  onValueChange={(value) => setToolOpacity(value[0])}
+                  value={[toolSettings.opacity]}
+                  onValueChange={(value) => onToolSettingsChange({...toolSettings, opacity: value[0]})}
                   min={10}
                   max={100}
                   step={1}
                   className="flex-1"
                 />
                 <span className="text-sm text-gray-600 dark:text-gray-400 w-10 text-right">
-                  {toolOpacity}%
+                  {toolSettings.opacity}%
                 </span>
               </div>
             </div>
@@ -84,8 +87,8 @@ export function ToolProperties({ currentTool, settings, onSettingsChange }: Tool
                 Pressure Sensitivity
               </Label>
               <Switch
-                checked={pressureSensitive}
-                onCheckedChange={setPressureSensitive}
+                checked={toolSettings.pressureSensitive}
+                onCheckedChange={(checked) => onToolSettingsChange({...toolSettings, pressureSensitive: checked})}
               />
             </div>
 
@@ -95,15 +98,15 @@ export function ToolProperties({ currentTool, settings, onSettingsChange }: Tool
               </Label>
               <div className="flex items-center gap-3">
                 <Slider
-                  value={[smoothing]}
-                  onValueChange={(value) => setSmoothing(value[0])}
+                  value={[toolSettings.smoothing]}
+                  onValueChange={(value) => onToolSettingsChange({...toolSettings, smoothing: value[0]})}
                   min={0}
                   max={100}
                   step={1}
                   className="flex-1"
                 />
                 <span className="text-sm text-gray-600 dark:text-gray-400 w-10 text-right">
-                  {smoothing}%
+                  {toolSettings.smoothing}%
                 </span>
               </div>
             </div>
@@ -117,8 +120,8 @@ export function ToolProperties({ currentTool, settings, onSettingsChange }: Tool
           </CardHeader>
           <CardContent>
             <ColorPicker
-              value={selectedColor}
-              onChange={setSelectedColor}
+              value={toolSettings.color}
+              onChange={(color) => onToolSettingsChange({...toolSettings, color})}
             />
           </CardContent>
         </Card>

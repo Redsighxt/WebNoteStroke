@@ -64,10 +64,20 @@ export class SimpleVideoExporter {
         message: 'Rendering animation frames...'
       });
 
-      // Setup MediaRecorder for video recording
+      // Setup MediaRecorder for video recording with optimal settings
       const stream = exportCanvas.captureStream(frameRate);
+      
+      // Try different codecs for better compression
+      let mimeType = 'video/webm;codecs=vp9';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/webm;codecs=vp8';
+      }
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/webm';
+      }
+      
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp8',
+        mimeType: mimeType,
         videoBitsPerSecond: this.getBitrate(settings.quality)
       });
 
@@ -110,26 +120,27 @@ export class SimpleVideoExporter {
           message: `Rendering frame ${i + 1} of ${frames.length}...`
         });
 
-        // Wait for frame duration
-        await new Promise(resolve => setTimeout(resolve, frameDuration));
+        // Wait for frame duration (reduced for faster processing)
+        await new Promise(resolve => setTimeout(resolve, Math.max(16, frameDuration / 2)));
       }
 
       // Finalize recording
       return new Promise((resolve, reject) => {
         mediaRecorder.onstop = () => {
-          const blob = new Blob(chunks, { type: 'video/webm' });
+          const blob = new Blob(chunks, { type: mimeType });
           onProgress({
             stage: 'complete',
             progress: 100,
             currentFrame: frames.length,
             totalFrames: frames.length,
             timeRemaining: 0,
-            message: 'Video export complete!'
+            message: `Video export complete! Size: ${(blob.size / 1024 / 1024).toFixed(2)}MB`
           });
           resolve(blob);
         };
 
         mediaRecorder.onerror = (error) => {
+          console.error('MediaRecorder error:', error);
           onProgress({
             stage: 'error',
             progress: 0,
@@ -141,9 +152,10 @@ export class SimpleVideoExporter {
           reject(error);
         };
 
+        // Stop recording after all frames are processed
         setTimeout(() => {
           mediaRecorder.stop();
-        }, 1000); // Give some time for final frame
+        }, 500); // Reduced delay for faster processing
       });
 
     } catch (error) {
@@ -191,13 +203,15 @@ export class SimpleVideoExporter {
   private getBitrate(quality: string): number {
     switch (quality) {
       case 'low':
-        return 1000000; // 1 Mbps
+        return 500000; // 0.5 Mbps - very small file
       case 'medium':
-        return 2500000; // 2.5 Mbps
+        return 1000000; // 1 Mbps - small file
       case 'high':
-        return 5000000; // 5 Mbps
+        return 2000000; // 2 Mbps - balanced
+      case 'auto':
+        return 800000; // 0.8 Mbps - optimized for notes
       default:
-        return 2500000; // 2.5 Mbps
+        return 800000; // 0.8 Mbps - optimized for notes
     }
   }
 

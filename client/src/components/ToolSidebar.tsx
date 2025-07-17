@@ -34,7 +34,7 @@ const toolIcons: Record<ToolType, any> = {
 
 export function ToolSidebar({ currentTool, onToolChange, tools }: ToolSidebarProps) {
   return (
-    <aside className="w-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-4 gap-3">
+    <aside className="w-20 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-4 gap-3 flex-shrink-0">
       <div className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">TOOLS</div>
       
       {tools.map((tool) => {
