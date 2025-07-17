@@ -7,6 +7,7 @@ import { PageManager } from '@/components/PageManager';
 import { VideoExportModal } from '@/components/VideoExportModal';
 import { CanvasCreationModal } from '@/components/CanvasCreationModal';
 import { ExportProgressModal } from '@/components/ExportProgressModal';
+import { FloatingControls } from '@/components/FloatingControls';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useCanvas } from '@/hooks/useCanvas';
@@ -35,7 +36,9 @@ export default function Home() {
     opacity: 100,
     color: '#000000',
     smoothing: 0,
-    pressureSensitive: true
+    pressureSensitive: true,
+    snapToGrid: false,
+    gridSize: 10
   });
 
   const { canvasRef, state, updateSettings, addStroke, undo, redo, clearCanvas, canUndo, canRedo } = useCanvas();
@@ -122,7 +125,7 @@ export default function Home() {
     }
   });
 
-  // Auto-save functionality
+  // Auto-save functionality (reduced frequency)
   useEffect(() => {
     if (currentCanvasId && state.strokes.length > 0) {
       const autoSaveInterval = setInterval(() => {
@@ -135,12 +138,17 @@ export default function Home() {
           pages: currentCanvas?.pages || []
         };
         
-        saveCanvasMutation.mutate(canvasData);
-      }, 30000); // Auto-save every 30 seconds
+        // Save silently without showing toast
+        saveCanvasMutation.mutate(canvasData, {
+          onSuccess: () => {
+            // Silent save - no notification
+          }
+        });
+      }, 120000); // Auto-save every 2 minutes instead of 30 seconds
 
       return () => clearInterval(autoSaveInterval);
     }
-  }, [currentCanvasId, state.strokes, saveCanvasMutation]);
+  }, [currentCanvasId, state.strokes]);
 
   // Recording timer - fix to not reset when lifting stylus
   useEffect(() => {
@@ -324,16 +332,7 @@ export default function Home() {
           tools={DEFAULT_TOOLS}
         />
 
-        {/* Tool Properties Panel */}
-        <ToolProperties
-          currentTool={currentTool}
-          settings={state.settings}
-          onSettingsChange={updateSettings}
-          toolSettings={toolSettings}
-          onToolSettingsChange={setToolSettings}
-        />
-
-        {/* Canvas Area */}
+        {/* Canvas Area - Full width without tool properties for more space */}
         <div className="flex-1 flex flex-col">
           {/* Canvas Toolbar */}
           <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-between">
@@ -406,6 +405,12 @@ export default function Home() {
           onExportAll={() => setShowVideoExport(true)}
         />
       </div>
+
+      {/* Floating Controls */}
+      <FloatingControls
+        toolSettings={toolSettings}
+        onToolSettingsChange={setToolSettings}
+      />
 
       {/* Modals */}
       <VideoExportModal

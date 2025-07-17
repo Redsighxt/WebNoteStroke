@@ -96,8 +96,8 @@ export class StrokeEngine {
       }));
     }
 
-    // Render stroke incrementally
-    this.renderStrokeIncremental(stroke, settings);
+    // Only render the latest part to avoid flickering
+    this.renderStrokeSegment(stroke, settings, stroke.points.length - 2);
 
     this.lastPoint = point;
     this.performanceMonitor.recordPoint();
@@ -125,17 +125,39 @@ export class StrokeEngine {
     return stroke;
   }
 
+  private renderStrokeSegment(stroke: StrokeData, settings: ToolSettings, fromIndex: number = 0) {
+    if (stroke.points.length < 2 || fromIndex < 0) return;
+
+    this.ctx.save();
+    
+    // Use stroke's saved properties, not current settings
+    this.ctx.globalAlpha = stroke.opacity / 100;
+    this.ctx.strokeStyle = stroke.color;
+    this.ctx.lineWidth = stroke.size;
+    this.ctx.lineCap = 'round';
+    this.ctx.lineJoin = 'round';
+
+    // Only draw the new segment to avoid flickering
+    const segmentPoints = stroke.points.slice(Math.max(0, fromIndex));
+    if (segmentPoints.length >= 2) {
+      const path = createBezierPath(segmentPoints);
+      this.ctx.stroke(path);
+    }
+
+    this.ctx.restore();
+  }
+
   private renderStrokeIncremental(stroke: StrokeData, settings: ToolSettings) {
     if (stroke.points.length < 2) return;
 
     this.ctx.save();
     
-    // Set up rendering context
-    this.ctx.globalAlpha = settings.opacity / 100;
-    this.ctx.strokeStyle = settings.color;
-    this.ctx.lineWidth = settings.size;
-    this.ctx.lineCap = settings.lineCap || 'round';
-    this.ctx.lineJoin = settings.lineJoin || 'round';
+    // Use stroke's saved properties, not current settings
+    this.ctx.globalAlpha = stroke.opacity / 100;
+    this.ctx.strokeStyle = stroke.color;
+    this.ctx.lineWidth = stroke.size;
+    this.ctx.lineCap = 'round';
+    this.ctx.lineJoin = 'round';
 
     // Create path for the stroke
     const path = createBezierPath(stroke.points);
@@ -143,22 +165,22 @@ export class StrokeEngine {
     // Apply tool-specific rendering
     switch (stroke.tool) {
       case 'pen':
-        this.renderPen(path, settings);
+        this.renderPen(path, stroke);
         break;
       case 'pencil':
-        this.renderPencil(path, settings);
+        this.renderPencil(path, stroke);
         break;
       case 'brush':
-        this.renderBrush(path, settings);
+        this.renderBrush(path, stroke);
         break;
       case 'marker':
-        this.renderMarker(path, settings);
+        this.renderMarker(path, stroke);
         break;
       case 'fountain-pen':
-        this.renderFountainPen(path, settings);
+        this.renderFountainPen(path, stroke);
         break;
       case 'eraser':
-        this.renderEraser(path, settings);
+        this.renderEraser(path, stroke);
         break;
       default:
         this.ctx.stroke(path);
@@ -167,37 +189,37 @@ export class StrokeEngine {
     this.ctx.restore();
   }
 
-  private renderPen(path: Path2D, settings: ToolSettings) {
+  private renderPen(path: Path2D, stroke: StrokeData) {
     this.ctx.stroke(path);
   }
 
-  private renderPencil(path: Path2D, settings: ToolSettings) {
+  private renderPencil(path: Path2D, stroke: StrokeData) {
     // Add texture effect for pencil
     this.ctx.globalCompositeOperation = 'multiply';
     this.ctx.stroke(path);
     this.ctx.globalCompositeOperation = 'source-over';
   }
 
-  private renderBrush(path: Path2D, settings: ToolSettings) {
+  private renderBrush(path: Path2D, stroke: StrokeData) {
     // Variable width brush effect
-    this.ctx.lineWidth = settings.size * 1.2;
-    this.ctx.globalAlpha = (settings.opacity / 100) * 0.8;
+    this.ctx.lineWidth = stroke.size * 1.2;
+    this.ctx.globalAlpha = (stroke.opacity / 100) * 0.8;
     this.ctx.stroke(path);
   }
 
-  private renderMarker(path: Path2D, settings: ToolSettings) {
+  private renderMarker(path: Path2D, stroke: StrokeData) {
     // Marker with slight transparency overlay
     this.ctx.globalCompositeOperation = 'multiply';
     this.ctx.stroke(path);
     this.ctx.globalCompositeOperation = 'source-over';
   }
 
-  private renderFountainPen(path: Path2D, settings: ToolSettings) {
+  private renderFountainPen(path: Path2D, stroke: StrokeData) {
     // Fountain pen with variable width
     this.ctx.stroke(path);
   }
 
-  private renderEraser(path: Path2D, settings: ToolSettings) {
+  private renderEraser(path: Path2D, stroke: StrokeData) {
     this.ctx.globalCompositeOperation = 'destination-out';
     this.ctx.stroke(path);
     this.ctx.globalCompositeOperation = 'source-over';

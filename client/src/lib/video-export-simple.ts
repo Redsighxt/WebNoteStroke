@@ -15,15 +15,6 @@ export class SimpleVideoExporter {
     settings: VideoExportSettings,
     onProgress: (progress: VideoExportProgress) => void
   ): Promise<Blob> {
-    onProgress({
-      stage: 'preparing',
-      progress: 0,
-      currentFrame: 0,
-      totalFrames: 0,
-      timeRemaining: 0,
-      message: 'Preparing video export...'
-    });
-
     try {
       // Create export canvas with proper dimensions
       const exportCanvas = document.createElement('canvas');
@@ -88,13 +79,17 @@ export class SimpleVideoExporter {
         }
       };
 
-      // Start recording
+      // Start recording immediately
       mediaRecorder.start();
+
+      // Skip frames for faster export with smaller file size
+      const skipFrames = Math.max(1, Math.floor(frames.length / 60)); // Limit to 60 frames max
+      const selectedFrames = frames.filter((_, index) => index % skipFrames === 0);
 
       // Render frames
       const startTime = performance.now();
-      for (let i = 0; i < frames.length; i++) {
-        const frame = frames[i];
+      for (let i = 0; i < selectedFrames.length; i++) {
+        const frame = selectedFrames[i];
         
         // Clear canvas
         exportCtx.clearRect(0, 0, exportCanvas.width, exportCanvas.height);
@@ -109,15 +104,15 @@ export class SimpleVideoExporter {
         }
         
         const elapsed = performance.now() - startTime;
-        const remaining = (elapsed / (i + 1)) * (frames.length - i - 1);
+        const remaining = (elapsed / (i + 1)) * (selectedFrames.length - i - 1);
         
         onProgress({
           stage: 'rendering',
-          progress: (i / frames.length) * 80, // 80% for rendering
+          progress: (i / selectedFrames.length) * 100,
           currentFrame: i + 1,
-          totalFrames: frames.length,
+          totalFrames: selectedFrames.length,
           timeRemaining: remaining,
-          message: `Rendering frame ${i + 1} of ${frames.length}...`
+          message: `Exporting frame ${i + 1} of ${selectedFrames.length}...`
         });
 
         // Wait for frame duration (reduced for faster processing)
